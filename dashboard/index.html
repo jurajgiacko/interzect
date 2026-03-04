@@ -455,6 +455,18 @@ const PRODUCT_EMAILS = {
 // ============ UTILITIES ============
 function esc(s) { if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function fmt(n) { return n.toLocaleString('cs-CZ'); }
+function isFemale(surname) {
+    if (!surname) return false;
+    const s = surname.trim().toLowerCase();
+    return s.endsWith('ová') || s.endsWith('ská') || s.endsWith('cká') || s.endsWith('ná') || s.endsWith('á');
+}
+function czGreeting(prospect) {
+    const lk = (prospect.lk || '').trim();
+    if (!lk) return 'Dobrý den';
+    const parts = lk.split(/\s+/);
+    const surname = parts[parts.length - 1];
+    return isFemale(surname) ? `Vážená paní ${lk}` : `Vážený pane ${lk}`;
+}
 
 function animateCount(el, target, duration=1200) {
     const start = performance.now();
@@ -873,8 +885,10 @@ function updateCampaignPreview() {
     document.getElementById('campaignCount').textContent = fmt(targets.length);
 
     const prod = PRODUCT_EMAILS[product];
+    const sampleTarget = targets.find(p => p.lk) || targets[0];
+    const greeting = sampleTarget ? czGreeting(sampleTarget) : 'Dobrý den';
     document.getElementById('campaignEmailPreview').textContent =
-        `Dobrý den,\n\nobracím se na Vás jako zástupce společnosti Vitar — jedničky na českém trhu s vitamíny a doplňky stravy.\n\nRádi bychom Vám představili ${prod.product} pro vaši lékárnu:\n\n${prod.items}\n\nNabízíme konkurenceschopné velkoobchodní podmínky, marketingovou podporu a POS materiály.\n\nMohu Vám zaslat aktuální katalog a ceník?\n\nS pozdravem,\nObchodní tým Vitar\nwww.vitar.cz`;
+        `${greeting},\n\nobracím se na Vás jako zástupce společnosti Vitar — jedničky na českém trhu s vitamíny a doplňky stravy.\n\nRádi bychom Vám představili ${prod.product} pro vaši lékárnu:\n\n${prod.items}\n\nNabízíme konkurenceschopné velkoobchodní podmínky, marketingovou podporu a POS materiály.\n\nMohu Vám zaslat aktuální katalog a ceník?\n\nS pozdravem,\nObchodní tým Vitar\nwww.vitar.cz`;
 }
 
 function copyPreviewEmail() {

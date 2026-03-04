@@ -149,14 +149,27 @@ def get_city_tier(city):
     return 'Tier 3'
 
 
+def is_female_surname(surname):
+    """Czech female surnames end in -ová, -á, -ská, -cká, -ná etc."""
+    s = surname.strip().lower()
+    return s.endswith(('ová', 'ská', 'cká', 'ná', 'á'))
+
+
 def generate_outreach_email(pharmacy):
     name = pharmacy['name']
     city = pharmacy['city']
-    contact_name = ''
-    if pharmacy.get('lekarnik_titul') and pharmacy.get('lekarnik_prijmeni'):
-        contact_name = f"{pharmacy['lekarnik_titul']} {pharmacy['lekarnik_prijmeni']}"
+    prijmeni = pharmacy.get('lekarnik_prijmeni', '').strip()
+    titul = pharmacy.get('lekarnik_titul', '').strip()
 
-    greeting = f"Vážený/á {contact_name}" if contact_name else "Dobrý den"
+    if prijmeni:
+        female = is_female_surname(prijmeni)
+        title_str = f"{titul} " if titul else ""
+        if female:
+            greeting = f"Vážená paní {title_str}{prijmeni}"
+        else:
+            greeting = f"Vážený pane {title_str}{prijmeni}"
+    else:
+        greeting = "Dobrý den"
 
     return (
         f"{greeting},\n\n"
