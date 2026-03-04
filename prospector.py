@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Vitar Prospector - AI-Powered B2B Pharmacy Discovery
-Processes SÚKL pharmacy register into scored prospect database.
+Vitar Prospector - AI-Powered B2B Discovery
+Processes SÚKL pharmacy register + ČSÚ business register into scored prospect database.
 """
 
 import csv
@@ -16,7 +16,26 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
 DASHBOARD_DIR = os.path.join(BASE_DIR, 'dashboard')
 SUKL_CSV = os.path.join(DATA_DIR, 'lekarny_seznam.csv')
+CSU_JSON = os.path.join(DATA_DIR, 'csu_segments.json')
 DB_PATH = os.path.join(DATA_DIR, 'prospector.db')
+
+CSU_SEGMENT_MAP = {
+    'Drogerie / prodejci léčiv': 'drogerie',
+    'Kosmetika a toaletní výrobky': 'kozmetika',
+    'Zdravotnické prostředky': 'zdravotnicke',
+    'Specializované potraviny': 'bio',
+    'E-shop / zásilkový obchod': 'eshop',
+    'Fitness / sportovní zařízení': 'fitness',
+}
+
+CSU_SEGMENT_LABELS = {
+    'drogerie': 'Drogerie',
+    'kozmetika': 'Kosmetika',
+    'zdravotnicke': 'Zdravotnické prostředky',
+    'bio': 'Bio / Zdravá výživa',
+    'eshop': 'E-shop',
+    'fitness': 'Fitness / Wellness',
+}
 
 TIER_1_CITIES = {'Praha', 'Brno', 'Ostrava', 'Plzeň'}
 TIER_2_CITIES = {
@@ -384,33 +403,164 @@ def generate_dashboard_data(pharmacies, stats):
     print(f"  JSON: {json_path}")
 
 
+def parse_csu_data():
+    if not os.path.exists(CSU_JSON):
+        print("  ČSÚ data not found, skipping...")
+        return []
+
+    with open(CSU_JSON, 'r', encoding='utf-8') as f:
+        segments = json.load(f)
+
+    prospects = []
+    for segment_name, businesses in segments.items():
+        seg_code = CSU_SEGMENT_MAP.get(segment_name)
+        if not seg_code:
+            continue
+
+        for biz in businesses:
+            city = biz.get('obec', '').strip()
+            psc = biz.get('psc', '').strip()
+
+            score = 20
+            if city in TIER_1_CITIES:
+                score += 15
+            elif city in TIER_2_CITIES:
+                score += 10
+            if psc:
+                score += 5
+
+            seg_relevance = {
+                'drogerie': 20, 'bio': 15, 'kozmetika': 10,
+                'zdravotnicke': 10, 'eshop': 10, 'fitness': 5,
+            }
+            score += seg_relevance.get(seg_code, 0)
+
+            prospect = {
+                'id': f"csu-{biz.get('ico', '')}",
+                'name': biz.get('firma', '').strip(),
+                'ico': biz.get('ico', '').strip(),
+                'city': city,
+                'street': biz.get('ulice', '').strip(),
+                'psc': psc,
+                'region': get_region(psc),
+                'email': '',
+                'phone': '',
+                'www': '',
+                'type_code': seg_code,
+                'type_label': CSU_SEGMENT_LABELS.get(seg_code, seg_code),
+                'score': min(score, 100),
+                'score_reasons': [f'ČSÚ registr (+20)', f'Segment {CSU_SEGMENT_LABELS.get(seg_code, "")} (+{seg_relevance.get(seg_code, 0)})'],
+                'city_tier': get_city_tier(city),
+                'mail_order': False,
+                'erp': False,
+                'lekarnik_prijmeni': '',
+                'lekarnik_jmeno': '',
+                'lekarnik_titul': '',
+                'source': 'csu',
+                'segment': seg_code,
+                'eway_status': 'unknown',
+                'outreach_email': '',
+            }
+            prospects.append(prospect)
+
+    prospects.sort(key=lambda x: x['score'], reverse=True)
+    return prospects
+
+
+def compute_all_stats(pharmacies, csu_prospects):
+    all_prospects = pharmacies + csu_prospects
+    pharmacy_stats = compute_stats(pharmacies)
+
+    segment_counts = Counter()
+    for p in csu_prospects:
+        segment_counts[p.get('segment', 'unknown')] += 1
+
+    pharmacy_stats['csu_total'] = len(csu_prospects)
+    pharmacy_stats['csu_segments'] = {
+        CSU_SEGMENT_LABELS.get(k, k): v
+        for k, v in sorted(segment_counts.items(), key=lambda x: -x[1])
+    }
+    pharmacy_stats['grand_total'] = len(all_prospects)
+
+    csu_regions = Counter(p['region'] for p in csu_prospects)
+    pharmacy_stats['csu_regions'] = dict(sorted(csu_regions.items(), key=lambda x: -x[1]))
+
+    return pharmacy_stats
+
+
+def generate_dashboard_data_v2(pharmacies, csu_prospects, stats):
+    os.makedirs(DASHBOARD_DIR, exist_ok=True)
+
+    def compact(p):
+        return {
+            'id': p['id'], 'n': p['name'], 'ico': p['ico'],
+            'c': p['city'], 'st': p['street'], 'psc': p['psc'],
+            'r': p['region'], 'e': p.get('email', ''), 'ph': p.get('phone', ''),
+            'w': p.get('www', ''), 'tc': p['type_code'], 'tl': p['type_label'],
+            's': p['score'], 'sr': p.get('score_reasons', []),
+            'ct': p['city_tier'], 'mo': p.get('mail_order', False),
+            'erp': p.get('erp', False),
+            'lk': ' '.join(filter(None, [
+                p.get('lekarnik_titul', ''), p.get('lekarnik_jmeno', ''),
+                p.get('lekarnik_prijmeni', '')
+            ])),
+            'oe': p.get('outreach_email', ''),
+            'src': p.get('source', 'sukl'),
+            'seg': p.get('segment', 'lekarna'),
+        }
+
+    data = {
+        'stats': stats,
+        'pharmacies': [compact(p) for p in pharmacies],
+        'csu': [compact(p) for p in csu_prospects],
+    }
+
+    data_js_path = os.path.join(DASHBOARD_DIR, 'data.js')
+    with open(data_js_path, 'w', encoding='utf-8') as f:
+        f.write('const PROSPECTOR_DATA = ')
+        json.dump(data, f, ensure_ascii=False, indent=None)
+        f.write(';\n')
+    print(f"  Dashboard data: {data_js_path}")
+
+    json_path = os.path.join(OUTPUT_DIR, 'dashboard_data.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"  JSON: {json_path}")
+
+
 def main():
     print("=" * 60)
-    print("  VITAR PROSPECTOR - SÚKL Pharmacy Analysis")
+    print("  VITAR PROSPECTOR - Multi-Source B2B Discovery")
     print("=" * 60)
 
-    print("\n[1/5] Parsing SÚKL data...")
+    print("\n[1/6] Parsing SÚKL pharmacy data...")
     pharmacies = parse_sukl_data()
     print(f"  Loaded {len(pharmacies)} pharmacies")
 
-    print("\n[2/5] Computing statistics...")
-    stats = compute_stats(pharmacies)
-    print(f"  Avg score: {stats['avg_score']}")
-    print(f"  Top prospects (75+): {stats['top_prospects']}")
-    print(f"  With email: {stats['with_email']} ({stats['email_pct']}%)")
-    print(f"  Regions: {len(stats['regions'])}")
+    print("\n[2/6] Parsing ČSÚ business register...")
+    csu_prospects = parse_csu_data()
+    print(f"  Loaded {len(csu_prospects)} business prospects")
 
-    print("\n[3/5] Saving to SQLite...")
+    print("\n[3/6] Computing statistics...")
+    stats = compute_all_stats(pharmacies, csu_prospects)
+    print(f"  Pharmacies: {stats['total']} (avg score: {stats['avg_score']})")
+    print(f"  ČSÚ prospects: {stats['csu_total']}")
+    print(f"  Grand total: {stats['grand_total']}")
+    for seg, cnt in stats['csu_segments'].items():
+        print(f"    {seg}: {cnt}")
+
+    print("\n[4/6] Saving to SQLite...")
     save_to_sqlite(pharmacies)
 
-    print("\n[4/5] Exporting CSVs...")
+    print("\n[5/6] Exporting CSVs...")
     export_csvs(pharmacies)
 
-    print("\n[5/5] Generating dashboard data...")
-    generate_dashboard_data(pharmacies, stats)
+    print("\n[6/6] Generating dashboard data...")
+    generate_dashboard_data_v2(pharmacies, csu_prospects, stats)
 
     print("\n" + "=" * 60)
     print("  DONE!")
+    print(f"  Grand total: {stats['grand_total']} prospects")
     print(f"  Dashboard: open dashboard/index.html in browser")
     print("=" * 60)
 
