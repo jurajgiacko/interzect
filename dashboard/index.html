@@ -268,8 +268,23 @@
                         <option value="Tier 3">Tier 3 — ostatní</option>
                     </select>
                 </div>
-                <div class="flex items-center justify-between mt-3">
-                    <p class="text-xs text-gray-400"><span class="font-bold text-gray-600" id="filteredCount">0</span> lékáren</p>
+                <!-- Quick segment buttons -->
+                <div class="flex flex-wrap items-center gap-2 mt-3">
+                    <button onclick="setSource('all')" id="qAll" class="qseg text-xs px-3 py-1.5 rounded-full font-semibold transition-all bg-vitar-500 text-white">Vše <span class="opacity-70" id="qAllC"></span></button>
+                    <span class="w-px h-5 bg-gray-200"></span>
+                    <button onclick="setSource('lekarna')" id="qLek" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">🏥 Lékárny <span class="text-gray-300" id="qLekC"></span></button>
+                    <button onclick="setSource('drogerie')" id="qDro" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">🧴 Drogerie <span class="text-gray-300" id="qDroC"></span></button>
+                    <button onclick="setSource('eshop')" id="qEsh" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">🛒 E-shopy <span class="text-gray-300" id="qEshC"></span></button>
+                    <button onclick="setSource('kozmetika')" id="qKoz" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">💄 Kozmetika <span class="text-gray-300" id="qKozC"></span></button>
+                    <button onclick="setSource('bio')" id="qBio" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">🌿 Bio <span class="text-gray-300" id="qBioC"></span></button>
+                    <button onclick="setSource('fitness')" id="qFit" class="qseg text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">💪 Fitness <span class="text-gray-300" id="qFitC"></span></button>
+                    <span class="w-px h-5 bg-gray-200"></span>
+                    <button onclick="setScoreQuick(90)" id="qS90" class="qscore text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">🔥 Score 90+</button>
+                    <button onclick="setScoreQuick(75)" id="qS75" class="qscore text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">⭐ Score 75+</button>
+                    <button onclick="setScoreQuick(60)" id="qS60" class="qscore text-xs px-3 py-1.5 rounded-full font-medium transition-all border border-gray-200 text-gray-500 hover:bg-gray-50">Score 60+</button>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <p class="text-xs text-gray-400"><span class="font-bold text-gray-600" id="filteredCount">0</span> prospektů</p>
                     <div class="flex gap-2">
                         <button onclick="toggleFilter('email')" id="btnEmail" class="text-xs px-3 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition-all font-medium text-gray-500">S emailem</button>
                         <button onclick="toggleFilter('mailorder')" id="btnMail" class="text-xs px-3 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition-all font-medium text-gray-500">Zásilkový</button>
@@ -742,6 +757,8 @@ function closeDetail() {
 }
 
 // ============ SEGMENTS ============
+let activeScoreQuick = 0;
+
 function setSource(src) {
     activeSource = src;
     document.querySelectorAll('.src-btn').forEach(b => { b.classList.remove('border-vitar-500','border-2'); b.classList.add('border-gray-100','border'); });
@@ -749,9 +766,26 @@ function setSource(src) {
     const btn = document.querySelectorAll('.src-btn')[idx];
     if (btn) { btn.classList.add('border-vitar-500','border-2'); btn.classList.remove('border-gray-100','border'); }
 
+    document.querySelectorAll('.qseg').forEach(b => { b.classList.remove('bg-vitar-500','text-white'); b.classList.add('border','border-gray-200','text-gray-500'); });
+    const qMap = { all:'qAll', lekarna:'qLek', drogerie:'qDro', eshop:'qEsh', kozmetika:'qKoz', bio:'qBio', fitness:'qFit' };
+    const qb = document.getElementById(qMap[src]);
+    if (qb) { qb.classList.add('bg-vitar-500','text-white'); qb.classList.remove('border','border-gray-200','text-gray-500'); }
+
     if (src === 'all') pharmacies = allProspects;
     else if (src === 'lekarna') pharmacies = allPharmacies;
     else pharmacies = allCsu.filter(p => p.seg === src);
+    filterTable();
+}
+
+function setScoreQuick(min) {
+    if (activeScoreQuick === min) { activeScoreQuick = 0; } else { activeScoreQuick = min; }
+    document.querySelectorAll('.qscore').forEach(b => { b.classList.remove('bg-amber-500','text-white'); b.classList.add('border','border-gray-200','text-gray-500'); });
+    if (activeScoreQuick) {
+        const qMap = { 90:'qS90', 75:'qS75', 60:'qS60' };
+        const qb = document.getElementById(qMap[activeScoreQuick]);
+        if (qb) { qb.classList.add('bg-amber-500','text-white'); qb.classList.remove('border','border-gray-200','text-gray-500'); }
+    }
+    document.getElementById('scoreFilter').value = activeScoreQuick || '';
     filterTable();
 }
 
@@ -763,6 +797,15 @@ function initSegmentCounts() {
     document.getElementById('segKoz').textContent = fmt(allCsu.filter(p=>p.seg==='kozmetika').length);
     document.getElementById('segBio').textContent = fmt(allCsu.filter(p=>p.seg==='bio').length);
     document.getElementById('segFit').textContent = fmt(allCsu.filter(p=>p.seg==='fitness').length);
+
+    const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = fmt(v); };
+    el('qAllC', allProspects.length);
+    el('qLekC', allPharmacies.length);
+    el('qDroC', allCsu.filter(p=>p.seg==='drogerie').length);
+    el('qEshC', allCsu.filter(p=>p.seg==='eshop').length);
+    el('qKozC', allCsu.filter(p=>p.seg==='kozmetika').length);
+    el('qBioC', allCsu.filter(p=>p.seg==='bio').length);
+    el('qFitC', allCsu.filter(p=>p.seg==='fitness').length);
 }
 
 // ============ DASHBOARD MAP ============
