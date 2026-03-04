@@ -523,6 +523,7 @@ function showView(v) {
     document.getElementById('viewTitle').textContent = titles[v];
     if (v === 'map') loadMap();
     if (v === 'campaign') updateCampaignPreview();
+    if (v === 'prospects') filterTable();
 }
 
 // ============ DASHBOARD ============
@@ -675,22 +676,47 @@ function sortTable(f) {
 
 function renderTable() {
     const start = (currentPage-1)*PAGE_SIZE, page = filtered.slice(start, start+PAGE_SIZE);
-    document.getElementById('tableBody').innerHTML = page.map(p => `
-        <tr class="tbl-row cursor-pointer border-b border-gray-50" onclick="openDetail('${p.id}')">
-            <td class="px-5 py-3">${scoreBadge(p.s)}</td>
-            <td class="px-5 py-3"><p class="text-sm font-semibold text-gray-800">${esc(p.n)}${p.src==='csu'?` <span class="tag bg-amber-50 text-amber-500" style="font-size:9px">${esc(p.tl)}</span>`:''}</p><p class="text-[10px] text-gray-300 mt-0.5">IČO ${esc(p.ico)}</p></td>
-            <td class="px-5 py-3"><p class="text-sm text-gray-600">${esc(p.c)}</p><p class="text-[10px] text-gray-300">${esc(p.psc)}</p></td>
-            <td class="px-5 py-3 text-xs text-gray-400">${esc(p.r.replace(' kraj',''))}</td>
-            <td class="px-5 py-3">${p.e ? `<p class="text-xs text-vitar-500">${esc(p.e)}</p>` : '<span class="text-xs text-gray-200">—</span>'}${p.ph ? `<p class="text-[10px] text-gray-300 mt-0.5">${esc(p.ph)}</p>`:''}</td>
-            <td class="px-5 py-3"><span class="text-[10px] text-gray-400">${esc(p.tl)}</span>${p.mo?'<span class="ml-1 tag bg-vblue-500/10 text-vblue-500" style="font-size:9px">zásilkový</span>':''}</td>
-            <td class="px-5 py-3"><svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></td>
-        </tr>
-    `).join('');
-    const total = Math.ceil(filtered.length/PAGE_SIZE);
+    const tb = document.getElementById('tableBody');
+    if (filtered.length === 0) {
+        tb.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center">
+            <p class="text-gray-300 text-sm">Žádné výsledky pro aktuální filtry</p>
+            <button onclick="resetFilters()" class="mt-2 text-xs font-semibold text-vitar-500 hover:text-vitar-600">Resetovat filtry</button>
+        </td></tr>`;
+    } else {
+        tb.innerHTML = page.map(p => `
+            <tr class="tbl-row cursor-pointer border-b border-gray-50" onclick="openDetail('${p.id}')">
+                <td class="px-5 py-3">${scoreBadge(p.s)}</td>
+                <td class="px-5 py-3"><p class="text-sm font-semibold text-gray-800">${esc(p.n)}${p.src==='csu'?` <span class="tag bg-amber-50 text-amber-500" style="font-size:9px">${esc(p.tl)}</span>`:''}</p><p class="text-[10px] text-gray-300 mt-0.5">IČO ${esc(p.ico)}</p></td>
+                <td class="px-5 py-3"><p class="text-sm text-gray-600">${esc(p.c)}</p><p class="text-[10px] text-gray-300">${esc(p.psc)}</p></td>
+                <td class="px-5 py-3 text-xs text-gray-400">${esc(p.r.replace(' kraj',''))}</td>
+                <td class="px-5 py-3">${p.e ? `<p class="text-xs text-vitar-500">${esc(p.e)}</p>` : '<span class="text-xs text-gray-200">—</span>'}${p.ph ? `<p class="text-[10px] text-gray-300 mt-0.5">${esc(p.ph)}</p>`:''}</td>
+                <td class="px-5 py-3"><span class="text-[10px] text-gray-400">${esc(p.tl)}</span>${p.mo?'<span class="ml-1 tag bg-vblue-500/10 text-vblue-500" style="font-size:9px">zásilkový</span>':''}</td>
+                <td class="px-5 py-3"><svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg></td>
+            </tr>
+        `).join('');
+    }
+    const total = Math.ceil(filtered.length/PAGE_SIZE) || 1;
     document.getElementById('pageInfo').textContent = `Strana ${currentPage} z ${total} (${fmt(filtered.length)} záznamů)`;
     document.getElementById('btnPrev').disabled = currentPage <= 1;
     document.getElementById('btnNext').disabled = currentPage >= total;
     document.getElementById('filteredCount').textContent = fmt(filtered.length);
+}
+
+function resetFilters() {
+    activeScoreQuick = 0;
+    activeSource = 'all';
+    pharmacies = allProspects;
+    activeFilters = { email:false, mailorder:false, web:false };
+    document.getElementById('searchInput').value = '';
+    document.getElementById('regionFilter').value = '';
+    document.getElementById('scoreFilter').value = '';
+    document.getElementById('tierFilter').value = '';
+    document.querySelectorAll('.qscore').forEach(b => { b.classList.remove('bg-amber-500','text-white','border-amber-500'); b.classList.add('border','border-gray-200','text-gray-500'); });
+    document.querySelectorAll('.qseg').forEach(b => { b.classList.remove('bg-vitar-500','text-white'); b.classList.add('border','border-gray-200','text-gray-500'); });
+    const qAll = document.getElementById('qAll');
+    if (qAll) { qAll.classList.add('bg-vitar-500','text-white'); qAll.classList.remove('border','border-gray-200','text-gray-500'); }
+    ['btnEmail','btnMail','btnWeb'].forEach(id => { const b=document.getElementById(id); if(b){b.classList.remove('bg-vitar-500','text-white','border-vitar-500');} });
+    filterTable();
 }
 
 function prevPage() { if(currentPage>1){currentPage--;renderTable();} }
@@ -782,14 +808,14 @@ function setSource(src) {
 }
 
 function setScoreQuick(min) {
-    if (activeScoreQuick === min) { activeScoreQuick = 0; } else { activeScoreQuick = min; }
-    document.querySelectorAll('.qscore').forEach(b => { b.classList.remove('bg-amber-500','text-white'); b.classList.add('border','border-gray-200','text-gray-500'); });
+    activeScoreQuick = (activeScoreQuick === min) ? 0 : min;
+    document.querySelectorAll('.qscore').forEach(b => { b.classList.remove('bg-amber-500','text-white','border-amber-500'); b.classList.add('border','border-gray-200','text-gray-500'); });
     if (activeScoreQuick) {
-        const qMap = { 90:'qS90', 75:'qS75', 60:'qS60' };
-        const qb = document.getElementById(qMap[activeScoreQuick]);
-        if (qb) { qb.classList.add('bg-amber-500','text-white'); qb.classList.remove('border','border-gray-200','text-gray-500'); }
+        const qb = document.getElementById({90:'qS90',75:'qS75',60:'qS60'}[activeScoreQuick]);
+        if (qb) { qb.classList.add('bg-amber-500','text-white','border-amber-500'); qb.classList.remove('border-gray-200','text-gray-500'); }
     }
-    document.getElementById('scoreFilter').value = activeScoreQuick || '';
+    const sel = document.getElementById('scoreFilter');
+    if (sel) sel.value = String(activeScoreQuick || '');
     filterTable();
 }
 
