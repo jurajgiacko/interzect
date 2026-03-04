@@ -1,0 +1,26 @@
+Datová sada;Poøadí sloupce;Název sloupce;Typ;Význam
+lekarny_seznam;1;NAZEV;VARCHAR(60);Název lékárny
+lekarny_seznam;2;KOD_PRACOVISTE;VARCHAR(60);Kód pracovištì pøidìlený SÚKLem
+lekarny_seznam;3;KOD_LEKARNY;VARCHAR(40);Kód lékárny
+lekarny_seznam;4;ICZ;VARCHAR(30);Identifikaèní èíslo zdravotnického zaøízení
+lekarny_seznam;5;ICO;VARCHAR(12);Identifikaèní èíslo organizace
+lekarny_seznam;6;MESTO;VARCHAR(50);Mìsto
+lekarny_seznam;7;ULICE;VARCHAR(30);Ulice a èíslo
+lekarny_seznam;8;PSC;VARCHAR(10);PSÈ
+lekarny_seznam;9;LEKARNIK_PRIJMENI;VARCHAR(100);Pøíjmení vedoucího lékárníka
+lekarny_seznam;10;LEKARNIK_JMENO;VARCHAR(15);Jméno vedoucího lékárníka
+lekarny_seznam;11;LEKARNIK_TITUL;VARCHAR(10);Titul vedoucího lékárníka
+lekarny_seznam;12;WWW;VARCHAR(4000);Internetová adresa
+lekarny_seznam;13;EMAIL;VARCHAR(100);Emailové adresa
+lekarny_seznam;14;TELEFON;VARCHAR(50);Telefon
+lekarny_seznam;15;FAX;VARCHAR(100);Fax
+lekarny_seznam;16;ERP;VARCHAR(1);Pøíznak pøipojení k e-receptu (1-ano, 0-ne)
+lekarny_seznam;17;TYP_LEKARNY;VARCHAR(9);Kód typu lékárny
+lekarny_seznam;18;ZASILKOVY_PRODEJ;VARCHAR(3);Zásilkový prodej - ano
+lekarny_seznam;19;POHOTOVOST;VARCHAR(3);Pohotovost - ano
+lekarny_typ;1;TYP_LEKARNY;VARCHAR(255);Kód typu lékárny
+lekarny_typ;2;NAZEV;VARCHAR(255);Název typu lékárny
+lekarny_prac_doba;1;KOD_PRACOVISTE;VARCHAR(60);Kód pracovištì pøidìlený SÚKLem
+lekarny_prac_doba;2;DEN;VARCHAR(2);Den v týdnu a svátek
+lekarny_prac_doba;3;OD;VARCHAR(10);Otevírací doba
+lekarny_prac_doba;4;DO;VARCHAR(10);Zavírací doba

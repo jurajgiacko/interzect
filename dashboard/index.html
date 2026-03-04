@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="cs" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitar Prospector — AI-Powered B2B Discovery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        vitar: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            500: '#0052CC',
+                            600: '#003D99',
+                            700: '#002E73',
+                            800: '#001F4D',
+                            900: '#001033',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .score-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-hover { transition: all 0.2s; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .table-row { transition: background-color 0.15s; }
+        .table-row:hover { background-color: #f8fafc; }
+        .modal-backdrop { backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900 antialiased">
+    <script src="data.js"></script>
+
+    <div id="app">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-vitar-500 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-gray-900">Vitar Prospector</h1>
+                            <p class="text-xs text-gray-500 -mt-0.5">AI-Powered B2B Pharmacy Discovery</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-xs text-gray-400" id="dataDate"></span>
+                        <button onclick="exportCSV()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-vitar-500 text-white text-sm font-medium rounded-lg hover:bg-vitar-600 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Export CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fade-in">
+                <div class="bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-gray-900" id="kpiTotal">—</p>
+                            <p class="text-xs text-gray-500 font-medium">Lékáren v databázi</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-green-600" id="kpiEmail">—</p>
+                            <p class="text-xs text-gray-500 font-medium">Outreach ready (email)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-gray-900" id="kpiAvgScore">—</p>
+                            <p class="text-xs text-gray-500 font-medium">Průměrné skóre</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-5 border border-gray-200 card-hover">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-purple-600" id="kpiTop">—</p>
+                            <p class="text-xs text-gray-500 font-medium">Top prospects (75+)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 fade-in" style="animation-delay: 0.1s">
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Lékárny podle krajů</h3>
+                    <canvas id="regionChart" height="280"></canvas>
+                </div>
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-gray-700">Rozložení skóre</h3>
+                        <div class="flex gap-4 text-xs text-gray-500">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> 75+</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 45-74</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400"></span> &lt;45</span>
+                        </div>
+                    </div>
+                    <canvas id="scoreChart" height="280"></canvas>
+                </div>
+            </div>
+
+            <!-- eWay CRM Integration Banner -->
+            <div class="bg-gradient-to-r from-vitar-500 to-blue-600 rounded-xl p-6 mb-8 fade-in" style="animation-delay: 0.15s">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="text-white">
+                        <h3 class="font-bold text-lg">eWay CRM Matching</h3>
+                        <p class="text-blue-100 text-sm mt-1">Nahrajte export zákazníků z eWay CRM a okamžitě identifikujte, kdo už je váš zákazník a kdo ne.</p>
+                    </div>
+                    <label class="shrink-0 cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-white text-vitar-600 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        Nahrát CSV z eWay
+                        <input type="file" accept=".csv,.xlsx" class="hidden" onchange="handleEwayUpload(event)">
+                    </label>
+                </div>
+                <div id="ewayResult" class="hidden mt-4 bg-white/10 rounded-lg p-4 text-white text-sm"></div>
+            </div>
+
+            <!-- Filters + Table -->
+            <div class="bg-white rounded-xl border border-gray-200 fade-in" style="animation-delay: 0.2s">
+                <!-- Filters -->
+                <div class="p-4 border-b border-gray-100">
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <div class="flex-1 relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" id="searchInput" placeholder="Hledat lékárnu, město, IČO..." class="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-vitar-500 focus:border-transparent outline-none" oninput="filterTable()">
+                        </div>
+                        <select id="regionFilter" class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-vitar-500 outline-none" onchange="filterTable()">
+                            <option value="">Všechny kraje</option>
+                        </select>
+                        <select id="scoreFilter" class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-vitar-500 outline-none" onchange="filterTable()">
+                            <option value="">Všechna skóre</option>
+                            <option value="90">90+ (Výborný)</option>
+                            <option value="75">75+ (Velmi dobrý)</option>
+                            <option value="60">60+ (Dobrý)</option>
+                            <option value="45">45+ (Průměrný)</option>
+                        </select>
+                        <select id="tierFilter" class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-vitar-500 outline-none" onchange="filterTable()">
+                            <option value="">Všechny tiers</option>
+                            <option value="Tier 1">Tier 1 (velká města)</option>
+                            <option value="Tier 2">Tier 2 (krajská)</option>
+                            <option value="Tier 3">Tier 3 (ostatní)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between mt-3">
+                        <p class="text-xs text-gray-500"><span id="filteredCount">—</span> lékáren</p>
+                        <div class="flex gap-2">
+                            <button onclick="filterTable('email')" class="text-xs px-2.5 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors" id="btnEmailOnly">Pouze s emailem</button>
+                            <button onclick="filterTable('mailorder')" class="text-xs px-2.5 py-1 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors" id="btnMailOrder">Zásilkový prodej</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-700" onclick="sortTable('s')">Skóre</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-700" onclick="sortTable('n')">Název</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-700" onclick="sortTable('c')">Město</th>
+                                <th class="px-4 py-3 cursor-pointer hover:text-gray-700" onclick="sortTable('r')">Kraj</th>
+                                <th class="px-4 py-3">Typ</th>
+                                <th class="px-4 py-3">Email</th>
+                                <th class="px-4 py-3">Telefon</th>
+                                <th class="px-4 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                    <button onclick="prevPage()" id="btnPrev" class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Předchozí</button>
+                    <span class="text-xs text-gray-500" id="pageInfo"></span>
+                    <button onclick="nextPage()" id="btnNext" class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Další</button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-8 text-center text-xs text-gray-400 pb-8">
+                <p>Data: SÚKL Open Data (opendata.sukl.cz) | Aktualizace: únor 2026</p>
+                <p class="mt-1">Built for Vitar Group</p>
+            </div>
+        </main>
+
+        <!-- Detail Modal -->
+        <div id="modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/30 modal-backdrop" onclick="closeModal()"></div>
+            <div class="absolute right-0 top-0 bottom-0 w-full max-w-xl bg-white shadow-2xl overflow-y-auto">
+                <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+                    <h3 class="font-bold text-gray-900" id="modalTitle">—</h3>
+                    <button onclick="closeModal()" class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-6" id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const D = PROSPECTOR_DATA;
+    const S = D.stats;
+    let pharmacies = D.pharmacies;
+    let filtered = [...pharmacies];
+    let currentPage = 1;
+    let sortField = 's';
+    let sortAsc = false;
+    let emailOnly = false;
+    let mailOrderOnly = false;
+    const PAGE_SIZE = 25;
+
+    // Init KPIs
+    document.getElementById('kpiTotal').textContent = S.total.toLocaleString('cs');
+    document.getElementById('kpiEmail').textContent = S.with_email.toLocaleString('cs');
+    document.getElementById('kpiAvgScore').textContent = S.avg_score;
+    document.getElementById('kpiTop').textContent = S.top_prospects.toLocaleString('cs');
+    document.getElementById('dataDate').textContent = `Data: ${S.data_date} | Generováno: ${S.generated_at}`;
+
+    // Populate region filter
+    const regionSelect = document.getElementById('regionFilter');
+    Object.entries(S.regions).sort((a,b) => b[1]-a[1]).forEach(([r, cnt]) => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = `${r} (${cnt})`;
+        regionSelect.appendChild(opt);
+    });
+
+    // Region chart
+    const regionLabels = Object.keys(S.regions);
+    const regionValues = Object.values(S.regions);
+    new Chart(document.getElementById('regionChart'), {
+        type: 'bar',
+        data: {
+            labels: regionLabels.map(l => l.replace(' kraj', '')),
+            datasets: [{
+                data: regionValues,
+                backgroundColor: regionValues.map((_, i) => {
+                    const colors = ['#0052CC','#0066FF','#3385FF','#6699FF','#80AAFF','#99BBFF','#B3CCFF','#CCE0FF','#0052CC','#0066FF','#3385FF','#6699FF','#80AAFF','#99BBFF'];
+                    return colors[i % colors.length];
+                }),
+                borderRadius: 6,
+                barPercentage: 0.7,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+
+    // Score distribution chart
+    const scoreDist = S.score_distribution;
+    new Chart(document.getElementById('scoreChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(scoreDist),
+            datasets: [{
+                data: Object.values(scoreDist),
+                backgroundColor: ['#16a34a','#22c55e','#eab308','#f59e0b','#f97316','#ef4444'],
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { font: { size: 12 }, padding: 12, usePointStyle: true, pointStyleWidth: 10 }
+                }
+            }
+        }
+    });
+
+    function getScoreBadge(score) {
+        let color = 'bg-red-100 text-red-700';
+        if (score >= 90) color = 'bg-green-100 text-green-700';
+        else if (score >= 75) color = 'bg-emerald-100 text-emerald-700';
+        else if (score >= 60) color = 'bg-blue-100 text-blue-700';
+        else if (score >= 45) color = 'bg-amber-100 text-amber-700';
+        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${color}">${score}</span>`;
+    }
+
+    function renderTable() {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const page = filtered.slice(start, start + PAGE_SIZE);
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = page.map(p => `
+            <tr class="table-row cursor-pointer" onclick="openModal('${p.id}')">
+                <td class="px-4 py-3">${getScoreBadge(p.s)}</td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-sm text-gray-900">${esc(p.n)}</div>
+                    <div class="text-xs text-gray-400">${esc(p.ico)}</div>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">${esc(p.c)}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">${esc(p.r.replace(' kraj',''))}</td>
+                <td class="px-4 py-3"><span class="text-xs text-gray-500">${esc(p.tl)}</span></td>
+                <td class="px-4 py-3 text-sm">${p.e ? `<span class="text-green-600 text-xs">${esc(p.e)}</span>` : '<span class="text-gray-300">—</span>'}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">${esc(p.ph) || '—'}</td>
+                <td class="px-4 py-3">
+                    <button class="p-1 hover:bg-gray-100 rounded" title="Detail">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+        document.getElementById('pageInfo').textContent = `Strana ${currentPage} z ${totalPages}`;
+        document.getElementById('btnPrev').disabled = currentPage <= 1;
+        document.getElementById('btnNext').disabled = currentPage >= totalPages;
+        document.getElementById('filteredCount').textContent = filtered.length.toLocaleString('cs');
+    }
+
+    function filterTable(toggle) {
+        if (toggle === 'email') {
+            emailOnly = !emailOnly;
+            document.getElementById('btnEmailOnly').classList.toggle('bg-vitar-500', emailOnly);
+            document.getElementById('btnEmailOnly').classList.toggle('text-white', emailOnly);
+        }
+        if (toggle === 'mailorder') {
+            mailOrderOnly = !mailOrderOnly;
+            document.getElementById('btnMailOrder').classList.toggle('bg-vitar-500', mailOrderOnly);
+            document.getElementById('btnMailOrder').classList.toggle('text-white', mailOrderOnly);
+        }
+
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const region = document.getElementById('regionFilter').value;
+        const minScore = parseInt(document.getElementById('scoreFilter').value) || 0;
+        const tier = document.getElementById('tierFilter').value;
+
+        filtered = pharmacies.filter(p => {
+            if (search && !p.n.toLowerCase().includes(search) && !p.c.toLowerCase().includes(search) && !p.ico.includes(search)) return false;
+            if (region && p.r !== region) return false;
+            if (minScore && p.s < minScore) return false;
+            if (tier && p.ct !== tier) return false;
+            if (emailOnly && !p.e) return false;
+            if (mailOrderOnly && !p.mo) return false;
+            return true;
+        });
+
+        filtered.sort((a, b) => sortAsc ? (a[sortField] > b[sortField] ? 1 : -1) : (a[sortField] < b[sortField] ? 1 : -1));
+        currentPage = 1;
+        renderTable();
+    }
+
+    function sortTable(field) {
+        if (sortField === field) sortAsc = !sortAsc;
+        else { sortField = field; sortAsc = field === 'n' || field === 'c'; }
+        filtered.sort((a, b) => {
+            const av = typeof a[field] === 'string' ? a[field].toLowerCase() : a[field];
+            const bv = typeof b[field] === 'string' ? b[field].toLowerCase() : b[field];
+            return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+        renderTable();
+    }
+
+    function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
+    function nextPage() { if (currentPage < Math.ceil(filtered.length / PAGE_SIZE)) { currentPage++; renderTable(); } }
+
+    function openModal(id) {
+        const p = pharmacies.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('modalTitle').textContent = p.n;
+        document.getElementById('modalContent').innerHTML = `
+            <div class="space-y-6">
+                <!-- Score -->
+                <div class="flex items-center gap-4">
+                    <div class="text-center">
+                        <div class="text-4xl font-bold ${p.s >= 75 ? 'text-green-600' : p.s >= 45 ? 'text-amber-600' : 'text-red-500'}">${p.s}</div>
+                        <div class="text-xs text-gray-400 mt-1">SKÓRE</div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="w-full bg-gray-100 rounded-full h-3">
+                            <div class="h-3 rounded-full score-bar ${p.s >= 75 ? 'bg-green-500' : p.s >= 45 ? 'bg-amber-500' : 'bg-red-400'}" style="width: 0%"></div>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            ${p.sr.map(r => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${esc(r)}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Město</p><p class="text-sm font-medium">${esc(p.c)}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Adresa</p><p class="text-sm">${esc(p.st)}, ${esc(p.psc)}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Kraj</p><p class="text-sm">${esc(p.r)}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">IČO</p><p class="text-sm font-mono">${esc(p.ico)}</p></div>
+                    </div>
+                    <div class="space-y-3">
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Typ</p><p class="text-sm">${esc(p.tl)}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Tier</p><p class="text-sm">${esc(p.ct)}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Vedoucí lékárník</p><p class="text-sm">${esc(p.lk) || '—'}</p></div>
+                        <div><p class="text-xs text-gray-400 font-medium uppercase">Zásilkový prodej</p><p class="text-sm">${p.mo ? '✓ Ano' : 'Ne'}</p></div>
+                    </div>
+                </div>
+
+                <!-- Contact -->
+                <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase">Kontakt</h4>
+                    ${p.e ? `<div class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg><a href="mailto:${esc(p.e)}" class="text-sm text-vitar-500 hover:underline">${esc(p.e)}</a></div>` : ''}
+                    ${p.ph ? `<div class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg><span class="text-sm">${esc(p.ph)}</span></div>` : ''}
+                    ${p.w ? `<div class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg><a href="${p.w.startsWith('http') ? esc(p.w) : 'http://'+esc(p.w)}" target="_blank" class="text-sm text-vitar-500 hover:underline">${esc(p.w)}</a></div>` : ''}
+                </div>
+
+                <!-- Outreach Email Preview -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase">Návrh outreach emailu</h4>
+                        <button onclick="copyEmail('${p.id}')" class="text-xs text-vitar-500 hover:text-vitar-600 font-medium">Kopírovat</button>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-line leading-relaxed" id="emailPreview-${p.id}">${esc(p.oe)}</div>
+                </div>
+            </div>
+        `;
+        document.getElementById('modal').classList.remove('hidden');
+        setTimeout(() => {
+            document.querySelector('.score-bar').style.width = p.s + '%';
+        }, 50);
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.add('hidden');
+    }
+
+    function copyEmail(id) {
+        const p = pharmacies.find(x => x.id === id);
+        if (p) navigator.clipboard.writeText(p.oe);
+    }
+
+    function esc(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function exportCSV() {
+        let csv = 'Skóre;Název;IČO;Město;Kraj;Email;Telefon;Web;Typ;Tier\n';
+        filtered.forEach(p => {
+            csv += `${p.s};${p.n};${p.ico};${p.c};${p.r};${p.e};${p.ph};${p.w};${p.tl};${p.ct}\n`;
+        });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `vitar_prospects_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+    }
+
+    function handleEwayUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const lines = e.target.result.split('\n');
+            const header = lines[0].toLowerCase();
+            let icoCol = -1;
+
+            const cols = header.split(/[;,\t]/);
+            for (let i = 0; i < cols.length; i++) {
+                const c = cols[i].trim().replace(/"/g, '');
+                if (c === 'ico' || c === 'ičo' || c === 'ic' || c === 'ič' || c.includes('identifikační')) {
+                    icoCol = i;
+                    break;
+                }
+            }
+
+            if (icoCol === -1) {
+                document.getElementById('ewayResult').classList.remove('hidden');
+                document.getElementById('ewayResult').innerHTML = '⚠️ Sloupec IČO nebyl nalezen. Zkontrolujte formát CSV.';
+                return;
+            }
+
+            const delimiter = header.includes(';') ? ';' : header.includes('\t') ? '\t' : ',';
+            const ewayIcos = new Set();
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(delimiter);
+                if (parts[icoCol]) {
+                    const ico = parts[icoCol].trim().replace(/"/g, '').replace(/\s/g, '');
+                    if (ico) ewayIcos.add(ico);
+                }
+            }
+
+            let matched = 0, unmatched = 0;
+            pharmacies.forEach(p => {
+                const pIco = p.ico.replace(/\s/g, '');
+                if (ewayIcos.has(pIco)) {
+                    p.eway = 'customer';
+                    matched++;
+                } else {
+                    p.eway = 'prospect';
+                    unmatched++;
+                }
+            });
+
+            document.getElementById('ewayResult').classList.remove('hidden');
+            document.getElementById('ewayResult').innerHTML = `
+                ✅ Načteno <strong>${ewayIcos.size}</strong> IČO z eWay CRM<br>
+                🤝 <strong>${matched}</strong> lékáren = již zákazník Vitar<br>
+                🎯 <strong>${unmatched}</strong> lékáren = nový prospect (příležitost!)
+            `;
+            filterTable();
+        };
+        reader.readAsText(file);
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Initial render
+    filterTable();
+    </script>
+</body>
+</html>
